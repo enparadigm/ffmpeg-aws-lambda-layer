@@ -1,4 +1,6 @@
-STACK_NAME ?= ffmpeg-lambda-layer
+DEPLOYMENT_BUCKET ?= sharpsell-ffmpeg-lambda-layer
+STACK_NAME ?= sharpsell-ffmpeg-lambda-layer
+PROFILE ?= sharpsell-ffmpeg-lambda-deploy-role
 
 clean: 
 	rm -rf build
@@ -10,12 +12,9 @@ build/layer/bin/ffmpeg:
 	mv build/ffmpeg*/ffmpeg build/ffmpeg*/ffprobe build/layer/bin
 
 build/output.yaml: template.yaml build/layer/bin/ffmpeg
-	aws cloudformation package --template $< --s3-bucket $(DEPLOYMENT_BUCKET) --output-template-file $@
+	aws s3api head-bucket --bucket $(DEPLOYMENT_BUCKET) --profile $(PROFILE) &>/dev/null || aws s3 mb s3://$(DEPLOYMENT_BUCKET) --profile $(PROFILE)
+	aws cloudformation package --template $< --s3-bucket $(DEPLOYMENT_BUCKET) --output-template-file $@ --profile $(PROFILE)
 
 deploy: build/output.yaml
-	aws cloudformation deploy --template $< --stack-name $(STACK_NAME)
-	aws cloudformation describe-stacks --stack-name $(STACK_NAME) --query Stacks[].Outputs --output table
-
-deploy-example:
-	cd example && \
-		make deploy DEPLOYMENT_BUCKET=$(DEPLOYMENT_BUCKET) LAYER_STACK_NAME=$(STACK_NAME)
+	aws cloudformation deploy --template $< --stack-name $(STACK_NAME) --profile $(PROFILE)
+	aws cloudformation describe-stacks --stack-name $(STACK_NAME) --query Stacks[].Outputs --output table --profile $(PROFILE)
